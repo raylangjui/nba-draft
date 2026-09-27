@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NBA 選秀室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --floor:#F1E2C4; --floor2:#E7D2AB; --ink:#16223A; --muted:#6B6552; --line:#D5BE93;
+  --paper:#FBF5E8; --red:#C8102E; --redink:#fff; --gold:#B8860B;
+  --pg:#2B6CB0; --sg:#1E8C8A; --sf:#3C8D2F; --pf:#C46210; --c:#7B3FA0;
+  --num:"Barlow Condensed", "Arial Narrow", sans-serif;
+  --body:"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --floor:#101A2C; --floor2:#18253D; --ink:#EFE3C8; --muted:#A39B86; --line:#2A3A57;
+    --paper:#16223A; --red:#E0253F; --gold:#E0B45A;
+    --pg:#5B9BE0; --sg:#3DBDB9; --sf:#6CC25C; --pf:#EE8F3B; --c:#B07AD6;
+  }
+}
+:root[data-theme="dark"]{
+  --floor:#101A2C; --floor2:#18253D; --ink:#EFE3C8; --muted:#A39B86; --line:#2A3A57;
+  --paper:#16223A; --red:#E0253F; --gold:#E0B45A;
+  --pg:#5B9BE0; --sg:#3DBDB9; --sf:#6CC25C; --pf:#EE8F3B; --c:#B07AD6;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--floor);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  background-image:repeating-linear-gradient(90deg,transparent 0 58px,rgba(0,0,0,.035) 58px 60px)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:12px 14px 40px}
+
+/* clock */
+.clock{background:var(--red);color:var(--redink);border-radius:14px;padding:14px 16px;display:grid;
+  grid-template-columns:auto 1fr auto;gap:4px 16px;align-items:center;position:relative;overflow:hidden}
+.clock .no{font-family:var(--num);font-weight:800;font-size:clamp(56px,14vw,96px);line-height:.85;letter-spacing:-.02em;grid-row:span 2}
+.clock .rp{font-family:var(--num);font-weight:600;font-size:17px;opacity:.9;letter-spacing:.02em}
+.clock .who{font-size:clamp(20px,5vw,30px);font-weight:900;line-height:1.15;word-break:break-all}
+.clock .side{grid-row:span 2;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.clock.done{background:var(--ink);color:var(--floor)}
+.btn{border:0;border-radius:10px;padding:8px 14px;font-weight:700;background:var(--ink);color:var(--floor)}
+.btn.ghost{background:transparent;border:1.5px solid currentColor;color:inherit}
+.btn.red{background:var(--red);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.next{margin-top:8px;display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;font-size:13px;color:var(--muted)}
+.next span{white-space:nowrap;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.next b{font-family:var(--num);font-size:15px;color:var(--ink);margin-right:4px}
+.last{margin-top:8px;font-size:13px;color:var(--muted);min-height:20px}
+.last strong{color:var(--ink)}
+.sync{font-size:12px;opacity:.85}
+
+/* tabs */
+.tabs{display:flex;gap:4px;margin:14px 0 10px;border-bottom:2px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);background:var(--floor);z-index:5;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 14px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-color:var(--red)}
+.panel[hidden]{display:none}
+
+/* players */
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.search{flex:1 1 200px;min-width:0;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper)}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 11px;font-weight:700;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--floor);border-color:var(--ink)}
+.toggle{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.plist{list-style:none;margin:0;padding:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.prow{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .adp{font-family:var(--num);font-weight:700;font-size:22px;line-height:1;text-align:right}
+.prow .adp small{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.prow .nm{font-weight:700;line-height:1.25}
+.prow .meta{display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.prow.taken{opacity:.45}
+.prow.taken .nm{text-decoration:line-through}
+.prow.value .adp{color:var(--red)}
+.pos{font-family:var(--num);font-weight:700;font-size:12px;color:#fff;border-radius:4px;padding:0 5px;line-height:17px}
+.pos.PG{background:var(--pg)}.pos.SG{background:var(--sg)}.pos.SF{background:var(--sf)}.pos.PF{background:var(--pf)}.pos.C{background:var(--c)}
+.takenby{font-size:12px;color:var(--muted);text-align:right;max-width:110px}
+.pick{min-width:64px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+.more{display:block;margin:10px auto 0}
+.custom{margin-top:14px;display:flex;gap:6px;flex-wrap:wrap}
+.custom input{flex:1 1 180px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper)}
+
+/* board */
+.boardwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+table.board{border-collapse:collapse;min-width:1100px;width:100%;table-layout:fixed}
+.board th{font-size:12px;font-weight:700;padding:6px 4px;border-bottom:2px solid var(--line);position:sticky;top:0;background:var(--paper);word-break:break-all}
+.board th.rd,.board td.rd{width:38px;font-family:var(--num);font-size:16px;text-align:center;color:var(--muted)}
+.board td{border:1px solid var(--line);padding:4px 5px;height:50px;vertical-align:top;font-size:12px;line-height:1.2}
+.board td .n{font-family:var(--num);font-size:11px;color:var(--muted)}
+.board td.filled{border-left:4px solid var(--c1,var(--line))}
+.board td.filled .pn{font-weight:700;display:block;margin-top:1px}
+.board td.now{background:var(--red);color:#fff}
+.board td.now .n{color:#fff}
+.board .dir{font-size:10px;color:var(--muted)}
+
+/* teams */
+.teamsel{padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);font-weight:700;max-width:100%}
+.counts{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+.counts span{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:13px}
+.counts b{font-family:var(--num);font-size:17px;margin-left:3px}
+.roster{list-style:none;margin:0;padding:0;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.roster li{display:grid;grid-template-columns:70px 1fr auto;gap:10px;padding:8px 12px;border-top:1px solid var(--line);align-items:center}
+.roster li:first-child{border-top:0}
+.roster .rk{font-family:var(--num);font-weight:700;color:var(--muted)}
+.allteams{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:16px}
+.tcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tcard h3{margin:0 0 6px;font-size:15px}
+.tcard ol{margin:0;padding-left:22px;font-size:13px}
+
+/* settings */
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.names label{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.names label b{font-family:var(--num);font-size:20px;width:24px;text-align:center}
+.names input{flex:1;min-width:0;border:0;background:transparent;padding:4px 0;font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0}
+.row input[type=number]{width:80px;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper)}
+h2{font-size:17px;margin:20px 0 8px}
+textarea{width:100%;min-height:220px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);padding:10px;font-size:13px;font-family:var(--body)}
+.note{font-size:13px;color:var(--muted)}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(10,15,30,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.modal[hidden]{display:none}
+.sheet{background:var(--paper);color:var(--ink);border-radius:16px;padding:18px;max-width:420px;width:100%}
+.sheet h3{margin:0 0 4px;font-size:20px}
+.sheet p{margin:0 0 14px;color:var(--muted)}
+.sheet .acts{display:flex;gap:8px;justify-content:flex-end}
+@media (min-width:640px){.modal{align-items:center}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--floor);padding:9px 16px;border-radius:10px;font-weight:700;z-index:60;max-width:90vw}
+.toast[hidden]{display:none}
+@media (max-width:520px){
+  .clock{grid-template-columns:auto 1fr}
+  .clock .side{grid-row:auto;grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;margin-top:6px}
+  .prow{grid-template-columns:44px 1fr auto;gap:8px;padding:8px 10px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .clock.flash{animation:fl .6s ease}
+  @keyframes fl{0%{transform:scale(.98)}100%{transform:none}}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="clock" id="clock" aria-live="polite">
+    <div class="no" id="cNo">1</div>
+    <div class="rp" id="cRp">第 1 輪　第 1 順位</div>
+    <div class="who" id="cWho">輪到</div>
+    <div class="side">
+      <span class="sync" id="sync">連線中…</span>
+      <button class="btn ghost" id="undo">撤回上一籤</button>
+    </div>
+  </section>
+  <div class="last" id="last"></div>
+  <div class="next" id="next"></div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-t="players">剩餘球員</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="board">選秀板</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="teams">各隊名單</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="settings">設定與匯出</button>
+  </nav>
+
+  <section class="panel" id="p-players">
+    <div class="tools">
+      <input class="search" id="q" type="search" placeholder="搜尋球員或球隊（例如 LAL）" autocomplete="off">
+      <div class="chips" id="posf"></div>
+      <label class="toggle"><input type="checkbox" id="showTaken"> 顯示已被選的</label>
+    </div>
+    <ul class="plist" id="plist"></ul>
+    <button class="btn ghost more" id="more" hidden>顯示更多</button>
+    <div class="custom">
+      <input id="cname" placeholder="清單裡找不到？輸入球員名字">
+      <input id="cpos" placeholder="位置（例如 SG,SF）" style="flex:0 1 150px">
+      <button class="btn" id="cadd">選這位</button>
+    </div>
+  </section>
+
+  <section class="panel" id="p-board" hidden>
+    <div class="boardwrap"><table class="board" id="board"></table></div>
+    <p class="note">蛇形選秀：單數輪由 1 往 14 選，雙數輪由 14 往 1 選。紅色格子是現在輪到的順位。</p>
+  </section>
+
+  <section class="panel" id="p-teams" hidden>
+    <select class="teamsel" id="tsel"></select>
+    <div class="counts" id="counts"></div>
+    <ul class="roster" id="roster"></ul>
+    <div class="allteams" id="allteams"></div>
+  </section>
+
+  <section class="panel" id="p-settings" hidden>
+    <h2>隊名（依選秀順位）</h2>
+    <div class="names" id="names"></div>
+    <div class="row">
+      <label>輪數 <input type="number" id="rounds" min="1" max="25"></label>
+      <button class="btn" id="saveCfg">儲存設定</button>
+    </div>
+    <h2>選秀結果</h2>
+    <p class="note">選完後複製這份清單，照著輸入到 Yahoo。</p>
+    <textarea id="export" readonly></textarea>
+    <div class="row">
+      <button class="btn ghost" id="copy">複製清單</button>
+      <button class="btn red" id="reset">清空整場選秀</button>
+    </div>
+    <p class="note">ADP 來源：Yahoo 平均選秀順位（Hashtag Basketball 彙整，2026 年 9 月 24 日更新）。沒有 ADP 的球員排在最後。</p>
+  </section>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h3 id="mTitle"></h3>
+    <p id="mBody"></p>
+    <div class="acts">
+      <button class="btn ghost" id="mNo">取消</button>
+      <button class="btn red" id="mYes">確定</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ===== 把 Supabase 的網址和金鑰貼在引號裡 ===== */
+const SUPABASE_URL = "";   // 例如 https://abcdefgh.supabase.co
+const SUPABASE_KEY = "";   // anon 或 publishable 金鑰（很長一串）
+/* ============================================= */
+</script>
+<script>
+const RAW = [["Victor Wembanyama","SA","C",1.6],["Nikola Jokic","DEN","C",1.9],["Luka Doncic","LAL","PG,SG",3.6],["Shai Gilgeous-Alexander","OKC","PG",4.3],["Cade Cunningham","DET","PG,SG",6.3],["Giannis Antetokounmpo","MIA","PF,C",8.0],["Anthony Edwards","MIN","PG,SG",8.8],["Tyrese Maxey","PHI","PG",9.0],["Cooper Flagg","DAL","SG,SF,PF",10.0],["Jayson Tatum","BOS","SF,PF",10.2],["Jalen Johnson","ATL","SF,PF",12.0],["Scottie Barnes","TOR","SF,PF,C",14.0],["Donovan Mitchell","CLE","PG,SG",14.2],["Karl-Anthony Towns","NY","PF,C",14.9],["Tyrese Haliburton","IND","PG,SG",17.2],["Kevin Durant","HOU","SG,SF,PF",17.2],["Alperen Sengün","HOU","PF,C",18.2],["Jamal Murray","DEN","PG",20.3],["Austin Reaves","LAL","PG,SG,SF",21.9],["Jalen Brunson","NY","PG",22.5],["Amen Thompson","HOU","PG,SG",23.6],["Josh Giddey","CHI","PG,SG",23.9],["Stephen Curry","GS","PG",24.4],["LaMelo Ball","MIN","PG",25.7],["Trae Young","WAS","PG",26.6],["Chet Holmgren","OKC","PF,C",27.0],["Devin Booker","PHO","PG,SG",27.4],["Jaylen Brown","PHI","SG,SF,PF",28.2],["Domantas Sabonis","SAC","PF,C",28.4],["Kawhi Leonard","TOR","SG,SF,PF",28.5],["Evan Mobley","CLE","PF,C",30.0],["Bam Adebayo","MIA","PF,C",30.2],["Paolo Banchero","ORL","PF",33.9],["James Harden","CLE","PG,SG",35.6],["Jalen Duren","DET","C",35.8],["Walker Kessler","LAL","C",37.0],["Anthony Davis","WAS","PF,C",39.1],["Lauri Markkanen","UTA","SF,PF",39.2],["Deni Avdija","POR","SG,SF,PF",39.4],["LeBron James","PHI","SF,PF",39.4],["Kon Knueppel","CHA","SG,SF",39.5],["Trey Murphy III","NO","SG,SF",39.9],["Donovan Clingan","POR","C",40.9],["Jalen Williams","OKC","SF,PF",42.9],["Derrick White","BOS","PG,SG",46.9],["Brandon Miller","CHA","SF,PF",46.9],["Pascal Siakam","IND","PF,C",49.1],["Jaren Jackson Jr.","UTA","PF,C",50.6],["Joel Embiid","PHI","C",51.0],["Kyrie Irving","DAL","PG",52.6],["Desmond Bane","ORL","SG,SF",53.0],["Franz Wagner","ORL","SF,PF",53.4],["Onyeka Okongwu","ATL","C",54.5],["Stephon Castle","SA","PG,SG",55.3],["Keyonte George","UTA","PG,SG",56.0],["Cameron Boozer","MEM","PF",57.8],["Matas Buzelis","CHI","SF,PF",59.8],["Nickeil Alexander-Walker","ATL","PG,SG",60.1],["Michael Porter Jr.","BKN","SF,PF",60.2],["Dyson Daniels","ATL","SG,SF",61.9],["Naz Reid","CHA","PF,C",63.1],["Brandon Ingram","LAC","SG,SF,PF",64.3],["Ivica Zubac","IND","C",65.1],["Darius Garland","LAC","PG",65.3],["OG Anunoby","NY","SF,PF",66.5],["Tyler Herro","MIL","PG,SG",68.1],["Julius Randle","BKN","PF",68.4],["Damian Lillard","POR","PG",68.9],["Zion Williamson","NO","PF,C",70.3],["Jarrett Allen","CLE","C",70.9],["Alexandre Sarr","WAS","C",71.4],["Dejounte Murray","NO","PG",71.9],["Kel'el Ware","MIL","C",72.0],["Rudy Gobert","MIN","C",72.9],["Zach Edey","MEM","C",74.6],["VJ Edgecombe","PHI","PG,SG",75.7],["Ryan Rollins","MIL","PG,SG",76.3],["Derik Queen","NO","PF,C",77.4],["AJ Dybantsa","WAS","SF",77.9],["Payton Pritchard","BOS","PG",79.0],["Caleb Wilson","CHI","PF",79.6],["Mikal Bridges","NY","SF,PF",79.7],["De'Aaron Fox","SA","PG",80.2],["Paul George","BOS","SF,PF",80.8],["Dylan Harper","SA","PG,SG",85.0],["Jaden McDaniels","MIN","SF",88.3],["Coby White","CHA","PG,SG",88.4],["Ausar Thompson","DET","SG,SF,PF",89.0],["Cedric Coward","MEM","SG,SF",89.7],["Nicolas Claxton","CHI","C",90.6],["Ja Morant","POR","PG",92.3],["Norman Powell","CHI","SG,SF",92.7],["Jabari Smith Jr.","HOU","PF,C",94.5],["Day'Ron Sharpe","BKN","C",94.8],["Bronny James Jr.","LAL","PG,SG",95.9],["Josh Hart","NY","SG,SF",96.4],["Immanuel Quickley","TOR","PG,SG",97.0],["Miles Bridges","PHO","PF",98.0],["Darryn Peterson","UTA","SG",99.3],["Myles Turner","MIL","C",99.8],["Kristaps Porzingis","GS","C",100.0],["Andrew Wiggins","MIA","SG,SF,PF",102.0],["Dean Wade","PHI","SF,PF",102.4],["Adem Bona","PHI","C",102.9],["AJ Green","MIL","PG,SG,SF",103.3],["Jaime Jaquez Jr.","MIL","SG,SF,PF",103.5],["Luke Kennard","PHO","SG,SF",103.5],["Jalen Green","PHO","SG,SF",103.9],["Anfernee Simons","PHI","PG,SG",104.1],["Brook Lopez","LAC","C",104.2],["Al Horford","GS","PF,C",104.3],["Alex Caruso","OKC","SG,SF",104.7],["Andre Drummond","NY","C",104.7],["Aday Mara","OKC","C",104.9],["Zach LaVine","SAC","PG,SG,SF",105.1],["Isaiah Hartenstein","OKC","C",105.6],["Aaron Nesmith","IND","SG,SF",106.5],["Duncan Robinson","DET","SG,SF",107.2],["Daniel Gafford","DAL","C",107.6],["Rui Hachimura","LAC","SF,PF",107.7],["Mark Williams","PHO","C",107.8],["Mitchell Robinson","BOS","C",108.0],["Jared McCain","OKC","PG,SG",108.3],["CJ McCollum","ATL","PG,SG",108.5],["Klay Thompson","MIA","SG,SF",108.6],["Aaron Wiggins","ATL","SG,SF",109.1],["Julian Champagnie","SA","SF,PF",109.2],["Ty Jerome","MEM","PG,SG",109.5],["Draymond Green","GS","PF,C",109.5],["Darius Acuff Jr.","SAC","PG",110.1],["Toumani Camara","POR","SF,PF",111.0],["RJ Barrett","TOR","SG,SF,PF",111.5],["Jalen Suggs","ORL","PG,SG",111.6],["Isaiah Stewart","MEM","PF,C",111.9],["Bobby Portis","MIA","PF,C",111.9],["Wendell Carter Jr.","ORL","C",112.0],["Tre Jones","CHI","PG,SG",112.2],["Aaron Gordon","DEN","PF,C",112.5],["Moussa Diabaté","CHA","C",113.0],["Jusuf Nurkic","UTA","C",113.2],["Tobias Harris","SA","PF",113.9],["Cameron Johnson","DEN","SF,PF",113.9],["Kyle Filipowski","UTA","PF,C",114.0],["Brayden Burries","MIL","SG",114.1],["Neemias Queta","BOS","C",114.2],["Ayo Dosunmu","MIN","PG,SG",114.3],["Andrew Nembhard","IND","PG,SG",115.0],["Grayson Allen","CHA","SG,SF",115.0],["Nikola Vucevic","ORL","C",115.1],["Dillon Brooks","PHO","SF,PF",115.2],["Ajay Mitchell","OKC","PG,SG",115.4],["Kelly Oubre Jr.","IND","SF,PF",115.4],["Peyton Watson","CLE","SF,PF",115.6],["Collin Murray-Boyles","TOR","PF,C",115.8],["Yaxel Lendeborg","GS","PF",116.1],["Brandin Podziemski","GS","PG,SG",116.5],["Devin Vassell","SA","SG,SF",116.5],["DeMar DeRozan","DEN","SF,PF",116.6],["Jonathan Kuminga","MIN","SF,PF",116.7],["John Collins","DET","PF,C",116.8],["Tari Eason","HOU","SG,SF,PF",116.8],["Jeremiah Fears","NO","PG,SG",117.1],["Morez Johnson Jr.","DAL","PF",117.1],["P.J. Washington","DAL","PF,C",117.2],["Kyshawn George","WAS","SG,SF,PF",117.3],["Jimmy Butler III","GS","SF,PF",117.3],["Kyle Kuzma","MIL","SF,PF",117.3],["Mikel Brown Jr.","BKN","PG",117.5],["Paul Reed","DET","PF,C",117.6],["Jrue Holiday","POR","PG,SG",117.6],["Bennedict Mathurin","NO","SG,SF",117.6],["Jerami Grant","MEM","SF,PF",117.7],["Deandre Ayton","WAS","C",117.7],["Kevin Porter Jr.","MIL","PG,SG",117.8],["Cason Wallace","OKC","PG,SG,SF",118.0],["Naji Marshall","DAL","SG,SF,PF",118.0],["Ace Bailey","UTA","SF,PF",118.1],["Sandro Mamukelashvili","LAL","PF,C",118.1],["Maxime Raynaud","SAC","C",118.3],["Anthony Black","ORL","PG,SG,SF",118.6],["Davion Mitchell","MIA","PG",118.6],["Shaedon Sharpe","POR","PG,SG",118.7],["Collin Sexton","LAL","PG,SG",118.9],["Fred VanVleet","HOU","PG",119.1],["Keaton Wagler","LAC","SG",119.3],["Reed Sheppard","HOU","PG,SG",120.2],["Egor Demin","BKN","PG,SG",120.5],["Christian Braun","DEN","SG,SF,PF",120.5],["Keegan Murray","SAC","SF,PF",120.7],["Saddiq Bey","NO","SF,PF",120.7],["Collin Gillespie","PHO","PG,SG",120.8],["Khaman Maluach","PHO","C",121.2],["Jakob Poeltl","TOR","C",121.4],["Quentin Grimes","LAL","SG,SF",121.5],["Gradey Dick","LAC","SG,SF",null],["Carter Bryant","SA","SF,PF",null],["Bones Hyland","MIN","PG,SG",null],["Tyler Kolek","NY","PG,SG",null],["Scoot Henderson","POR","PG",null],["Dereck Lively II","DAL","C",null],["Jordan Poole","NO","PG,SG",null],["Malik Monk","SAC","PG,SG",null],["Bilal Coulibaly","WAS","SG,SF",null],["Herbert Jones","NO","SG,SF",null],["Jose Alvarado","NY","PG",null],["T.J. McConnell","IND","PG",null],["Santi Aldama","DAL","PF",null],["Obi Toppin","IND","SF,PF",null],["Keldon Johnson","SA","SF,PF",null],["Scotty Pippen Jr.","MEM","PG",null],["Gui Santos","GS","SF,PF",null],["Luguentz Dort","ATL","SG,SF",null],["Jaylen Wells","MEM","SG,SF",null],["Zaccharie Risacher","DAL","SF,PF",null]];
+const PLAYERS = RAW.map((r,i)=>({id:"y"+i, name:r[0], team:r[1], pos:r[2].split(","), adp:r[3], rank:i+1}));
+const BY_ID = Object.fromEntries(PLAYERS.map(p=>[p.id,p]));
+const N = 14;
+const DEF_TEAMS = Array.from({length:N},(_,i)=>`第 ${i+1} 順位`);
+const LS = "nbaDraft2026";
+
+let cfg = {teams:DEF_TEAMS.slice(), rounds:13};
+let picks = {}; // n -> pick
+let mode = "local", sb = null, canWrite = true;
+const ROOM = (new URLSearchParams(location.search).get("room")||"main").replace(/[^a-zA-Z0-9_-]/g,"")||"main";
+let pos = "ALL", limit = 60;
+
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const total = ()=>N*cfg.rounds;
+const teamOf = n=>{const r=Math.floor(n/N),i=n%N;return r%2===0?i:N-1-i};
+const roundOf = n=>Math.floor(n/N)+1;
+const inRound = n=>n%N+1;
+const pid = n=>"p"+String(n).padStart(3,"0");
+function current(){for(let n=0;n<total();n++) if(!picks[n]) return n; return -1}
+function lastPick(){let m=-1;for(const k in picks) m=Math.max(m,+k);return m}
+function takenMap(){const m={};for(const k in picks){const p=picks[k];if(p.pid) m[p.pid]=+k}return m}
+function posHtml(arr){return arr.map(x=>`<span class="pos ${esc(x)}">${esc(x)}</span>`).join("")}
+function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2200)}
+function ask(title,body,yes="確定"){return new Promise(res=>{$("#mTitle").textContent=title;$("#mBody").textContent=body;$("#mYes").textContent=yes;$("#modal").hidden=false;
+  const done=v=>{$("#modal").hidden=true;$("#mYes").onclick=$("#mNo").onclick=null;res(v)};$("#mYes").onclick=()=>done(true);$("#mNo").onclick=()=>done(false);$("#mYes").focus()})}
+
+/* ---------- storage ---------- */
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({cfg,picks}))}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){cfg=d.cfg||cfg;picks=d.picks||{}}}catch(e){}}
+
+async function fetchPicks(){
+  const {data,error}=await sb.from("picks").select("n,pid,name,team,pos,adp,ts").eq("room",ROOM);
+  if(error) throw error;
+  const m={}; (data||[]).forEach(r=>{m[r.n]={n:r.n,pid:r.pid,name:r.name,team:r.team||"",pos:r.pos||[],adp:r.adp,at:r.ts}});
+  picks=m; render();
+}
+async function fetchCfg(){
+  const {data,error}=await sb.from("config").select("teams,rounds").eq("room",ROOM).maybeSingle();
+  if(error) throw error;
+  if(data){cfg={teams:(data.teams||DEF_TEAMS).slice(0,N),rounds:data.rounds||13};while(cfg.teams.length<N)cfg.teams.push(DEF_TEAMS[cfg.teams.length])}
+  render();
+}
+async function writePick(n,data){
+  if(mode==="sb"){
+    const {error}=await sb.from("picks").insert({room:ROOM,n,pid:data.pid,name:data.name,team:data.team,pos:data.pos,adp:data.adp,ts:data.at});
+    if(error){ if(error.code==="23505"){toast("這個順位剛剛已經有人選了");await fetchPicks();return false} throw error }
+    await fetchPicks();
+  }else{picks[n]=data;saveLocal();render()}
+  return true;
+}
+async function removePick(n){
+  if(mode==="sb"){const {error}=await sb.from("picks").delete().eq("room",ROOM).eq("n",n);if(error)throw error;await fetchPicks()}
+  else{delete picks[n];saveLocal();render()}
+}
+async function writeCfg(){
+  if(mode==="sb"){const {error}=await sb.from("config").upsert({room:ROOM,teams:cfg.teams,rounds:cfg.rounds});if(error)throw error;await fetchCfg()}
+  else{saveLocal();render()}
+}
+/* ---------- actions ---------- */
+async function doPick(player){
+  const n=current(); if(n<0){toast("選秀已經結束");return}
+  if(!canWrite){toast("你目前只能看，不能選");return}
+  if(player.id && takenMap()[player.id]!==undefined){toast("這位已經被選走了");return}
+  const t=cfg.teams[teamOf(n)];
+  const ok=await ask(`${player.name}`,`選給「${t}」，第 ${roundOf(n)} 輪第 ${inRound(n)} 順位（總第 ${n+1} 籤）。`,"確定選入");
+  if(!ok) return;
+  const data={n, pid:player.id||null, name:player.name, team:player.team||"", pos:player.pos, adp:player.adp??null, at:Date.now()};
+  try{ if(await writePick(n,data)){ toast(`${t} 選了 ${player.name}`); flash(); } }
+  catch(e){handleErr(e)}
+}
+function flash(){const c=$("#clock");c.classList.remove("flash");void c.offsetWidth;c.classList.add("flash")}
+function handleErr(e){
+  const c=String(e&&(e.code||"")), m=String(e&&e.message||"").toLowerCase();
+  if(c==="42501"||m.includes("row-level security")||m.includes("permission")) toast("資料庫拒絕寫入：請檢查 SQL 設定");
+  else if(c==="42P01"||m.includes("does not exist")) toast("找不到資料表：SQL 可能還沒執行");
+  else toast("存檔失敗，請檢查網路再試一次");
+}
+
+/* ---------- render ---------- */
+function render(){
+  const n=current(), tm=takenMap();
+  const clock=$("#clock");
+  if(n<0){clock.classList.add("done");$("#cNo").textContent="✓";$("#cRp").textContent=`${cfg.rounds} 輪全部選完`;$("#cWho").textContent="選秀結束";}
+  else{clock.classList.remove("done");$("#cNo").textContent=n+1;$("#cRp").textContent=`第 ${roundOf(n)} 輪　第 ${inRound(n)} 順位`;$("#cWho").textContent=`輪到 ${cfg.teams[teamOf(n)]}`;}
+  const lp=lastPick();
+  $("#undo").disabled=lp<0||!canWrite;
+  $("#last").innerHTML = lp>=0 ? `上一籤：<strong>${esc(cfg.teams[teamOf(lp)])}</strong> 選了 <strong>${esc(picks[lp].name)}</strong>`:"還沒有人選，第 1 順位開始吧。";
+  let nx=[];if(n>=0)for(let k=n+1;k<Math.min(total(),n+6);k++)nx.push(`<span><b>${k+1}</b>${esc(cfg.teams[teamOf(k)])}</span>`);
+  $("#next").innerHTML = nx.length?`<span style="background:none;border:0;padding-left:0">接下來</span>`+nx.join(""):"";
+  renderPlayers(tm,n); renderBoard(n); renderTeams(); renderExport();
+}
+
+function renderPlayers(tm,n){
+  const q=$("#q").value.trim().toLowerCase(), show=$("#showTaken").checked;
+  let list=PLAYERS.filter(p=>(show||tm[p.id]===undefined)&&(pos==="ALL"||p.pos.includes(pos))&&(!q||p.name.toLowerCase().includes(q)||p.team.toLowerCase()===q));
+  const cnt=list.length; list=list.slice(0,limit);
+  $("#more").hidden=cnt<=limit;
+  const now=n<0?Infinity:n+1;
+  $("#plist").innerHTML = list.length? list.map(p=>{
+    const t=tm[p.id]; const taken=t!==undefined;
+    const value=!taken&&p.adp!=null&&p.adp<now-3;
+    return `<li class="prow${taken?" taken":""}${value?" value":""}">
+      <div class="adp">${p.adp!=null?p.adp.toFixed(1):"—"}<small>#${p.rank}</small></div>
+      <div><div class="nm">${esc(p.name)}</div><div class="meta">${posHtml(p.pos)}<span>${esc(p.team)}</span>${value?`<span style="color:var(--red);font-weight:700">已過 ADP</span>`:""}</div></div>
+      ${taken?`<div class="takenby">第 ${t+1} 籤<br>${esc(cfg.teams[teamOf(t)])}</div>`:`<button class="btn pick" data-id="${p.id}" ${(!canWrite||n<0)?"disabled":""}>選入</button>`}
+    </li>`}).join("") : `<li class="empty">找不到符合的球員。可以清掉搜尋或換個位置篩選，或在下方直接輸入名字。</li>`;
+}
+
+function renderBoard(n){
+  let h=`<thead><tr><th class="rd">輪</th>${cfg.teams.map((t,i)=>`<th>${i+1}. ${esc(t)}</th>`).join("")}</tr></thead><tbody>`;
+  for(let r=0;r<cfg.rounds;r++){
+    h+=`<tr><td class="rd">${r+1}<div class="dir">${r%2===0?"→":"←"}</div></td>`;
+    for(let ti=0;ti<N;ti++){
+      const k=r%2===0?r*N+ti:r*N+(N-1-ti); const p=picks[k];
+      if(p){const c=`var(--${(p.pos&&p.pos[0]||"x").toLowerCase()})`;
+        h+=`<td class="filled" style="--c1:${c}"><span class="n">${k+1}</span> ${posHtml(p.pos||[])}<span class="pn">${esc(p.name)}</span></td>`}
+      else h+=`<td class="${k===n?"now":""}"><span class="n">${k+1}</span></td>`;
+    }
+    h+="</tr>";
+  }
+  $("#board").innerHTML=h+"</tbody>";
+}
+
+function rosterOf(ti){return Object.keys(picks).map(Number).filter(k=>teamOf(k)===ti).sort((a,b)=>a-b).map(k=>picks[k])}
+function renderTeams(){
+  const sel=$("#tsel"), cur=sel.value||"0";
+  sel.innerHTML=cfg.teams.map((t,i)=>`<option value="${i}">${i+1}. ${esc(t)}</option>`).join(""); sel.value=cur;
+  const ti=+sel.value, ro=rosterOf(ti);
+  const c={PG:0,SG:0,SF:0,PF:0,C:0}; ro.forEach(p=>(p.pos||[]).forEach(x=>{if(x in c)c[x]++}));
+  $("#counts").innerHTML=`<span>已選 <b>${ro.length}</b> / ${cfg.rounds}</span>`+Object.entries(c).map(([k,v])=>`<span class="pos ${k}" style="padding:3px 8px;font-size:13px">${k} ${v}</span>`).join("");
+  $("#roster").innerHTML=ro.length?ro.map(p=>`<li><span class="rk">R${roundOf(p.n)} #${p.n+1}</span><span><b>${esc(p.name)}</b> <span class="note">${esc(p.team)}</span></span><span>${posHtml(p.pos||[])}</span></li>`).join(""):`<li class="empty" style="display:block">這隊還沒選任何球員。</li>`;
+  $("#allteams").innerHTML=cfg.teams.map((t,i)=>`<div class="tcard"><h3>${i+1}. ${esc(t)}</h3><ol>${rosterOf(i).map(p=>`<li>${esc(p.name)}</li>`).join("")||'<li style="list-style:none;margin-left:-22px" class="note">尚未選人</li>'}</ol></div>`).join("");
+}
+
+function renderExport(){
+  let s="";cfg.teams.forEach((t,i)=>{s+=`【${i+1}. ${t}】\n`;rosterOf(i).forEach(p=>{s+=`  R${roundOf(p.n)} (#${p.n+1}) ${p.name} ${p.team} ${(p.pos||[]).join("/")}\n`});s+="\n"});
+  s+="—— 依順序 ——\n";Object.keys(picks).map(Number).sort((a,b)=>a-b).forEach(k=>{s+=`${k+1}. ${cfg.teams[teamOf(k)]}：${picks[k].name}\n`});
+  $("#export").value=s;
+  const box=$("#names");
+  if(!box.contains(document.activeElement)){
+    box.innerHTML=cfg.teams.map((t,i)=>`<label><b>${i+1}</b><input data-i="${i}" value="${esc(t)}" maxlength="24" aria-label="第 ${i+1} 順位隊名"></label>`).join("");
+    $("#rounds").value=cfg.rounds;
+  }
+}
+
+/* ---------- events ---------- */
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",x===b));
+  document.querySelectorAll(".panel").forEach(p=>p.hidden=p.id!=="p-"+b.dataset.t);
+});
+$("#posf").innerHTML=["ALL","PG","SG","SF","PF","C"].map(p=>`<button class="chip" data-p="${p}" aria-pressed="${p==="ALL"}">${p==="ALL"?"全部":p}</button>`).join("");
+$("#posf").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;pos=b.dataset.p;limit=60;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));render()};
+$("#q").oninput=()=>{limit=60;render()};
+$("#showTaken").onchange=render;
+$("#more").onclick=()=>{limit+=60;render()};
+$("#plist").onclick=e=>{const b=e.target.closest(".pick");if(b)doPick(BY_ID[b.dataset.id])};
+$("#cadd").onclick=()=>{const nm=$("#cname").value.trim();if(!nm){toast("先輸入球員名字");return}
+  const ps=$("#cpos").value.toUpperCase().split(/[,\/\s]+/).filter(x=>["PG","SG","SF","PF","C"].includes(x));
+  doPick({id:null,name:nm,team:"",pos:ps,adp:null}).then(()=>{$("#cname").value="";$("#cpos").value=""})};
+$("#tsel").onchange=renderTeams;
+$("#undo").onclick=async()=>{const lp=lastPick();if(lp<0)return;
+  if(await ask("撤回上一籤？",`把第 ${lp+1} 籤「${picks[lp].name}」退回，重新輪到 ${cfg.teams[teamOf(lp)]}。`,"撤回")){try{await removePick(lp);toast("已撤回")}catch(e){handleErr(e)}}};
+$("#saveCfg").onclick=async()=>{
+  const names=[...document.querySelectorAll("#names input")].map((x,i)=>x.value.trim()||DEF_TEAMS[i]);
+  const r=Math.max(1,Math.min(25,parseInt($("#rounds").value)||13));
+  cfg={teams:names,rounds:r};try{await writeCfg();document.activeElement.blur();render();toast("設定已儲存")}catch(e){handleErr(e)}};
+$("#copy").onclick=async()=>{const t=$("#export");try{await navigator.clipboard.writeText(t.value);toast("已複製")}catch(e){t.focus();t.select();toast("已選取文字，請按複製")}};
+$("#reset").onclick=async()=>{if(!await ask("清空整場選秀？","所有選秀紀錄都會刪除，隊名和輪數會保留。","全部清空"))return;
+  try{ if(mode==="sb"){const {error}=await sb.from("picks").delete().eq("room",ROOM);if(error)throw error;await fetchPicks()} else {picks={};saveLocal();render()} toast("已清空")}catch(e){handleErr(e)}};
+
+/* ---------- boot ---------- */
+loadLocal(); render();
+(async function(){
+  if(!window.supabase || !SUPABASE_URL || !SUPABASE_KEY){
+    $("#sync").textContent = window.supabase ? "尚未設定 Supabase：只存在這台裝置" : "無法載入 Supabase：只存在這台裝置";
+    return;
+  }
+  try{
+    sb=window.supabase.createClient(SUPABASE_URL.trim(),SUPABASE_KEY.trim());
+    mode="sb"; picks={}; $("#sync").textContent="連線中…";
+    await fetchCfg(); await fetchPicks();
+    sb.channel("draft-"+ROOM)
+      .on("postgres_changes",{event:"*",schema:"public",table:"picks"},()=>fetchPicks().catch(()=>{}))
+      .on("postgres_changes",{event:"*",schema:"public",table:"config"},()=>fetchCfg().catch(()=>{}))
+      .subscribe(st=>{
+        if(st==="SUBSCRIBED"){$("#sync").textContent="即時同步中";fetchPicks().catch(()=>{})}
+        else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED") $("#sync").textContent="即時連線中斷，每 10 秒自動更新";
+      });
+    // 保險：每 10 秒自動抓一次，切回畫面也會立即更新
+    setInterval(()=>{fetchPicks().catch(()=>{})},10000);
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden){fetchCfg().catch(()=>{});fetchPicks().catch(()=>{})}});
+  }catch(e){
+    const m=String(e&&e.message||"");
+    $("#sync").textContent = m.includes("does not exist")||e.code==="42P01" ? "找不到資料表：請先執行 SQL" : "Supabase 連線失敗：請檢查網址和金鑰";
+  }
+})();
+</script>
+</body>
+</html>
